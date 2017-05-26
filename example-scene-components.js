@@ -7,103 +7,306 @@
   // First go down to the following class's display() method to see where the sample
   // shapes you see drawn are coded, and a good place to begin filling in your own code.
 
-Declare_Any_Class( "Example_Animation",  // An example of a Scene_Component that our class Canvas_Manager can manage.  This one draws the scene's 3D shapes.
-  { 'construct'( context )
-      { var shapes = { 'triangle'        : new Triangle(),                               // At the beginning of our program, instantiate all shapes we plan to use,
-                       'strip'           : new Square(),                                // each with only one instance in the graphics card's memory.
-                       'bad_tetrahedron' : new Tetrahedron( false ),                   // For example we would only create one "cube" blueprint in the GPU, but then
-                       'tetrahedron'     : new Tetrahedron( true ),                   // re-use it many times per call to display to get multiple cubes in the scene.
-                       'windmill'        : new Windmill( 10 ) };
-        this.submit_shapes( context, shapes );
-        // *** Materials: *** Declare new ones as temps when needed; they're just cheap wrappers for some numbers.  1st parameter:  Color (4 floats in RGBA format),
-        // 2nd: Ambient light, 3rd: Diffuse reflectivity, 4th: Specular reflectivity, 5th: Smoothness exponent, 6th: Optional texture object, leave off for un-textured.
-        this.define_data_members( { purplePlastic: context.shaders_in_use["Phong_Model" ].material( Color( .9,.5,.9, 1 ), .4, .4, .8, 40 ),
-                                    greyPlastic  : context.shaders_in_use["Phong_Model" ].material( Color( .5,.5,.5, 1 ), .4, .8, .4, 20 ),   // Smaller exponent means
-                                    blueGlass    : context.shaders_in_use["Phong_Model" ].material( Color( .5,.5, 1,.2 ), .4, .8, .4, 40 ),     // a bigger shiny spot.
-                                    fire         : context.shaders_in_use["Funny_Shader"].material() } );
-      },
-    'display'( graphics_state )
-      { var model_transform = identity();             // We have to reset model_transform every frame.
+Declare_Any_Class( "Example_Animation",
+{ 'construct'( context )
+    { var shapes = { 'sphere' : new Grid_Sphere(20,20),
+          'cone' : new Closed_Cone(10,10),
+          'triangle'        : new Triangle(),
+          'cylinder' : new Capped_Cylinder(4,12)};
+      this.submit_shapes( context, shapes );
+      this.define_data_members( { bluePlastic  : context.shaders_in_use["Phong_Model" ].material( Color( .1,.1,.9, 1 ), .4, .8, .4, 20 ),
+                orangePlastic  : context.shaders_in_use["Phong_Model" ].material( Color( 1,.5,.3, 1 ), .4, .8, .4, 20 ),
+                brownPlastic  : context.shaders_in_use["Phong_Model" ].material( Color( .82,.7,.55, 1 ), .4, .8, .4, 20 ),
+                                  blueGlass    : context.shaders_in_use["Phong_Model" ].material( Color( .5,.5, 1,.2 ), .4, .8, .4, 40 ),
+                stars: context.shaders_in_use["Phong_Model"  ].material( Color( .5,.5,.5,1 ), .5, .5, .5, 40, context.textures_in_use["stars.png"] )} );
+    },
+  'display'( graphics_state )
+    { var model_transform = identity();             // We have to reset model_transform every frame
 
-        // *** Lights: *** Values of vector or point lights over time.  Two different lights *per shape* supported; more requires changing a number in the vertex shader.
-        graphics_state.lights = [ new Light( vec4(  30,  30,  34, 1 ), Color( 0, .4, 0, 1 ), 100000 ),      // Arguments to construct a Light(): Light source position or
-                                  new Light( vec4( -10, -20, -14, 0 ), Color( 1, 1, .3, 1 ), 100    ) ];    // vector (homogeneous coordinates), color, and size.
-        /**********************************
-        Start coding down here!!!!
-        **********************************/                                     // From here on down it's just some example shapes drawn
-                                                                                // for you -- freely replace them with your own!
-        model_transform = mult( model_transform, translation( 0, 5, 0 ) );
-        this.shapes.triangle       .draw( graphics_state, model_transform,                      this.purplePlastic );
+      graphics_state.lights = [ new Light( vec4(  30,  30,  34, 1 ), Color( 0, .4, 0, 1 ), 100000 ),
+                                new Light( vec4( -10, -20, -14, 0 ), Color( 1, 1, .3, 1 ), 100    ) ];
+      /**********************************
+      Start coding down here!!!!
+      **********************************/                                     // From here on down it's just some example shapes drawn
+  //model_transform = mult(model_transform, scale(2,2,2));
+  //this.shapes.sphere.draw(graphics_state, model_transform, this.bluePlastic);
+  //model_transform = mult(model_transform, scale(1/2,1/2,1/2));
+  //model_transform = mult(model_transform, translation(0,3,0));
+  model_transform = mult(model_transform, rotation(graphics_state.animation_time/20, 0, 1, 0));
+      this.shapes.sphere.draw(graphics_state, model_transform, this.bluePlastic);
 
-        model_transform = mult( model_transform, translation( 0, -2, 0 ) );
-        this.shapes.strip          .draw( graphics_state, model_transform,                      this.greyPlastic   );
+      model_transform = mult(model_transform, translation(0, 0, 2));
+          model_transform = mult(model_transform, scale(.3, .3, 1));
+              this.shapes.cone.draw(graphics_state, model_transform, this.orangePlastic);
+          model_transform = mult(model_transform, scale(1/.3, 1/.3, 1));
+      model_transform = mult(model_transform, translation(0, 0, -2));
 
-        var t = graphics_state.animation_time/1000,   tilt_spin   = rotation( 700*t, [          .1,          .8,             .1 ] ),
-                                                      funny_orbit = rotation(  90*t, [ Math.cos(t), Math.sin(t), .7*Math.cos(t) ] );
+      model_transform = mult(model_transform, translation(0, -3, 0));
+      model_transform = mult(model_transform, scale(2, 2, 2));
+      this.shapes.sphere.draw(graphics_state, model_transform, this.bluePlastic);
 
-        // Many shapes can share influence from the same pair of lights, but they don't have to.  All the following shapes will use these lights instead of the above ones.
-        graphics_state.lights = [ new Light( mult_vec( tilt_spin, vec4(  30,  30,  34, 1 ) ), Color( 0, .4, 0, 1 ), 100000               ),
-                                  new Light( mult_vec( tilt_spin, vec4( -10, -20, -14, 0 ) ), Color( 1, 1, .3, 1 ), 100*Math.cos( t/10 ) ) ];
+      model_transform = mult(model_transform, rotation(90, 0, 1, 0));
+          model_transform = mult(model_transform, translation(0, 0, 2));
+              model_transform = mult(model_transform, scale(.1, .1, 2));
+                  this.shapes.cylinder.draw(graphics_state, model_transform, this.brownPlastic);
+              model_transform = mult(model_transform, scale(1/.1, 1/.1, 1/2));
+          model_transform = mult(model_transform, translation(0, 0, -2));
+      model_transform = mult(model_transform, rotation(-90, 0, 1, 0));
 
-        model_transform = mult( model_transform, translation( 0, -2, 0 ) );
-        this.shapes.tetrahedron    .draw( graphics_state, mult( model_transform, funny_orbit ), this.purplePlastic );
+      model_transform = mult(model_transform, rotation(-90, 0, 1, 0));
+          model_transform = mult(model_transform, translation(0, 0, 2));
+              model_transform = mult(model_transform, scale(.1, .1, 2));
+                  this.shapes.cylinder.draw(graphics_state, model_transform, this.brownPlastic);
+              model_transform = mult(model_transform, scale(1/.1, 1/.1, 1/2));
+          model_transform = mult(model_transform, translation(0, 0, -2));
+      model_transform = mult(model_transform, rotation(90, 0, 1, 0));
 
-        model_transform = mult( model_transform, translation( 0, -2, 0 ) );
-        this.shapes.bad_tetrahedron.draw( graphics_state, mult( model_transform, funny_orbit ), this.greyPlastic   );
+      model_transform = mult(model_transform, translation(0, -3, 0));
+      model_transform = mult(model_transform, scale(2, 2, 2));
+      this.shapes.sphere.draw(graphics_state, model_transform, this.bluePlastic);
 
-        model_transform = mult( model_transform, translation( 0, -2, 0 ) );
-        this.shapes.windmill       .draw( graphics_state, mult( model_transform, tilt_spin ),   this.purplePlastic );
-        model_transform = mult( model_transform, translation( 0, -2, 0 ) );
-        this.shapes.windmill       .draw( graphics_state, model_transform,                      this.fire          );
-        model_transform = mult( model_transform, translation( 0, -2, 0 ) );
-        this.shapes.windmill       .draw( graphics_state, model_transform,                      this.blueGlass     );
-      }
-  }, Scene_Component );  // End of class definition
+    }
+}, Scene_Component );
 
   // *******************************************************************
   //  Assignment 1 would fit nicely into the following class definition:
 
 Declare_Any_Class( "Bee_Scene",  // An example of drawing a hierarchical object using a "model_transform" matrix and post-multiplication.
   { 'construct'( context )
-      { var shapes = { "box" : new        Cube(),
-                       "ball": new Grid_Sphere( 10, 10 ) };
+      {
+
+        var shapes = { "box" : new        Cube(),
+                      "pyramid": new      Pyramid(),
+                      "cylinder" : new Capped_Cylinder(4,12),
+                       "ball": new Grid_Sphere( 100, 100 ) };
         this.submit_shapes( context, shapes );
 
         this.define_data_members( { yellow_clay: context.shaders_in_use["Phong_Model"].material( Color(  1,  1, .3, 1 ), .2, 1, .7, 40 ),
-                                     brown_clay: context.shaders_in_use["Phong_Model"].material( Color( .5, .5, .3, 1 ), .2, 1,  1, 40 ) } );
+                                    yellow_clay1: context.shaders_in_use["Phong_Model"].material( Color(  1,  1, .5, 1 ), .2, 1, .7, 40 ),
+                                    yellow_clay2: context.shaders_in_use["Phong_Model"].material( Color(  1,  1, .7, 1 ), .2, 1, .7, 40 ),
+                                    brown_clay: context.shaders_in_use["Phong_Model"].material( Color( .5, .5, .3, 1 ), .2, 1,  1, 40,  ),
+                                    pyramid_color: context.shaders_in_use["Phong_Model"].material( Color( 1,  1, .7, 1 ), .2, 1, .7, 40, context.textures_in_use["pyramid.png"] ),
+                                    floor_color: context.shaders_in_use["Phong_Model"].material( Color( 1,  1, .7, 1 ), .2, 1, .7, 40, context.textures_in_use["desert_sand.jpg"] ),
+                                    sky_color: context.shaders_in_use["Phong_Model"].material( Color( .4,  .5, .6, 8 ), .7, .1, .1, .5, context.textures_in_use["sky.jpg"] )
+                                  } );
       },
     'display'( graphics_state )
       {
             // Assignment 1 can start here!
             var model_transform = identity();
 
-            graphics_state.lights = [ new Light( vec4(  30,  30,  34, 1 ), Color( 0, .4, 0, 1 ), 100000 ),
-                          new Light( vec4( -10, -20, -14, 0 ), Color( 1, 1, .3, 1 ), 100    ) ];
+            graphics_state.lights = [ new Light( vec4(  30,  30,  34, 1 ), Color( 1, 1, 1, 1 ), 5000 ),
+                          new Light( vec4( -10, -20, -14, 0 ), Color( 1, 1, 1, 1 ), 100    ) ];
 
-            model_transform = mult(model_transform, rotation(270, 1, 0, 0));
+            // draw head and arms
+            (() => {
+              var orig_model_transform = model_transform;
+
+              var draw_arm = function(){ // boolean on whether arm will rotate clockwise
+                var orig_model = model_transform;
+                model_transform = mult(model_transform, rotation(Math.sin(graphics_state.animation_time/1161.83) * 30, 1, 0, 0));
+                  model_transform = mult(model_transform, translation(0, 0, 3));
+                    model_transform = mult(model_transform, scale(.2, .2, 6));
+                      this.shapes.cylinder.draw(graphics_state, model_transform, this.yellow_clay1);
+                    model_transform = mult(model_transform, scale(1/.2, 1/.2, 1/6));
+
+                      model_transform = mult(model_transform, translation(0, 0, 3.5));
+                        model_transform = mult(model_transform, scale(.5, .5, .5));
+                          this.shapes.box.draw(graphics_state, model_transform, this.brown_clay);
+                        model_transform = mult(model_transform, scale(1/.5, 1/.5, 1/.5));
+
+                      model_transform = mult(model_transform, translation(0, 0, 0.5));
+                      model_transform = mult(model_transform, rotation(Math.sin(graphics_state.animation_time/1161.83) * 35, 1, 0, 0));
+                      model_transform = mult(model_transform, translation(0, 0, 0.5));
+                        model_transform = mult(model_transform, scale(.2, .2, 1));
+                          this.shapes.cylinder.draw(graphics_state, model_transform, this.yellow_clay1);
+                        model_transform = mult(model_transform, scale(1/.2, 1/.2, 1));
+
+                      model_transform = mult(model_transform, translation(0, 0, 1));
+                        model_transform = mult(model_transform, scale(.5, .5, .5));
+                          this.shapes.box.draw(graphics_state, model_transform, this.brown_clay);
+                        model_transform = mult(model_transform, scale(1/.5, 1/.5, 1/.5));
+
+                      model_transform = mult(model_transform, translation(0, 0, 0.5));
+                      model_transform = mult(model_transform, rotation(Math.sin(graphics_state.animation_time/1161.83) * 35, 1, 0, 0));
+                      model_transform = mult(model_transform, translation(0, 0, 0.5));
+                        model_transform = mult(model_transform, scale(.2, .2, 1));
+                          this.shapes.cylinder.draw(graphics_state, model_transform, this.yellow_clay1);
+                        model_transform = mult(model_transform, scale(1/.2, 1/.2, 1));
+
+                      model_transform = mult(model_transform, translation(0, 0, 1));
+                        model_transform = mult(model_transform, scale(.5, .5, .5));
+                          this.shapes.box.draw(graphics_state, model_transform, this.brown_clay);
+                        model_transform = mult(model_transform, scale(1/.5, 1/.5, 1/.5));
 
 
-            var drawFlower = function() {
+                model_transform = orig_model;
+              }.bind(this);
+
+              var draw_beam = function(start_time, end_time) { // time in ms
+
+                if(graphics_state.animation_time >= start_time && graphics_state.animation_time < end_time) {
+                  var orig_model = model_transform;
+                  percent_length = (graphics_state.animation_time - start_time) / (end_time - start_time);
+                  // console.log(percent_length);
+
+                  model_transform = mult(model_transform, translation(0, -5 * percent_length, 0));
+                    model_transform = mult(model_transform, rotation(90, 1, 0, 0));
+                      model_transform = mult(model_transform, scale(.1, .1, 10 * percent_length));
+                        this.shapes.cylinder.draw(graphics_state, model_transform, this.yellow_clay1);
+                      model_transform = mult(model_transform, scale(1/.2, 1/.2, 1 / (10 * percent_length)));
+                    model_transform = mult(model_transform, rotation(-90, 1, 0, 0));
+                  model_transform = mult(model_transform, translation(0, 5 * percent_length, 0));
+
+                  model_transform = orig_model;
+                }
+
+              }.bind(this);
+
+              var draw_space_ship = function(beam_start_time, beam_end_time){
+                if(Math.floor(graphics_state.animation_time / 3650) % 2 == 0) {
+                  model_transform = mult(model_transform, rotation(graphics_state.animation_time/10, 0, 1, 0));
+                } else {
+                  model_transform = mult(model_transform, rotation((graphics_state.animation_time/10) * -1, 0, 1, 0));
+                }
+                this.shapes.ball.draw(graphics_state, model_transform, this.brown_clay);
+                draw_beam(beam_start_time,beam_end_time);
+
+                for(let i = 0; i < 4; i++) {
+                  draw_arm(true);
+                  model_transform = mult(model_transform, rotation(90, 0, 1, 0));
+                }
+              }.bind(this);
+
+              model_transform = mult(model_transform, translation(0, 5, 0));
+
+              var get_percent_length = function(start_time){
+                  return (graphics_state.animation_time - start_time) / 3000;
+              }.bind(this);
+
+              if(graphics_state.animation_time < 3000) {
+                draw_space_ship(1000, 3000);
+                graphics_state.camera_transform = lookAt([0, 5, 50], [0, 5, 0], [0, 1, 0])
+              } else if(graphics_state.animation_time >= 3000 && graphics_state.animation_time < 6000) {
+                percent_length = get_percent_length(3000);
+                model_transform = mult(model_transform, translation(10 * percent_length, 0, -17.32 * percent_length));
+                draw_space_ship(6000, 8000);
+                graphics_state.camera_transform = lookAt([10 * percent_length, 5, 50 - 17.32 * percent_length], [10 * percent_length, 5, -17.32 * percent_length], [0, 1, 0])
+              } else if(graphics_state.animation_time >= 6000 && graphics_state.animation_time < 8000) {
+                model_transform = mult(model_transform, translation(10, 0, -17.32));
+                draw_space_ship(6000, 8000);
+                graphics_state.camera_transform = lookAt([10, 5, 50 - 17.32], [10, 5, -17.32], [0, 1, 0])
+              } else if(graphics_state.animation_time >= 8000 && graphics_state.animation_time < 11000) {
+                percent_length = get_percent_length(8000);
+                model_transform = mult(model_transform, translation(10 - 20 * percent_length, 0, -17.32));
+                draw_space_ship(11000, 13000);
+                graphics_state.camera_transform = lookAt([10 - 20 * percent_length, 5, 50 - 17.32], [10 - 20 * percent_length, 5, -17.32], [0, 1, 0])
+              } else if(graphics_state.animation_time >= 11000 && graphics_state.animation_time < 13000) {
+                model_transform = mult(model_transform, translation(-10, 0, -17.32));
+                draw_space_ship(11000, 13000);
+                graphics_state.camera_transform = lookAt([-10, 5, 50 - 17.32], [-10, 5, -17.32], [0, 1, 0])
+              } else if(graphics_state.animation_time >= 13000 && graphics_state.animation_time < 16000) {
+                percent_length = get_percent_length(13000);
+                model_transform = mult(model_transform, translation(-10 + 10 * percent_length, 0, -17.32 + 17.32 * percent_length));
+                draw_space_ship(11000, 13000);
+                graphics_state.camera_transform = lookAt([-10 + 10 * percent_length, 5, 50 - 17.32 + 17.32 * percent_length], [-10 + 10 * percent_length, 5, -17.32 + 17.32 * percent_length], [0, 1, 0])
+              } else {
+                draw_space_ship(1000, 3000);
+                graphics_state.camera_transform = lookAt([0, 5, 50], [0, 5, 0], [0, 1, 0])
+              }
+
+              model_transform = mult(model_transform, translation(0, -5, 0));
+
+              model_transform = orig_model_transform;
+            })();
+
+
+
+            var triple_pyramid = function() {
+
+              var draw_pyramid = function() {
+                var orig_model = model_transform;
+
+                model_transform = mult(model_transform, rotation(-90, 1, 0, 0));
+                  model_transform = mult(model_transform, scale(6, 6, 6));
+                    this.shapes.pyramid.draw(graphics_state, model_transform, this.pyramid_color);
+
+                model_transform = orig_model;
+              }.bind(this);
+
               var orig_model = model_transform;
 
-              model_transform = mult(model_transform, translation(0, 0, -6));
+              model_transform = mult(model_transform, translation(0, -10, 0));
+              if(graphics_state.animation_time >= 3000)
+                draw_pyramid();
+              model_transform = mult(model_transform, translation(10, 0, -17.32));
+              if(graphics_state.animation_time >= 8000)
+                draw_pyramid();
+              model_transform = mult(model_transform, translation(-20, 0, 0));
+              if(graphics_state.animation_time >= 13000)
+                draw_pyramid();
 
-              model_transform = mult(model_transform, scale(.2, .2, .4));
-                for(let i = 0; i < 20; i++) {
-                  this.shapes.box.draw(graphics_state, model_transform, this.yellow_clay);
-                    model_transform = mult(model_transform, translation(0, 0, 1.5));
-                }
-              model_transform = mult(model_transform, scale(1/.2, 1/.2, 1/.4));
-              model_transform = mult(model_transform, scale(2, 2, 2));
-                this.shapes.ball.draw(graphics_state, model_transform, this.brown_clay);
-              model_transform = mult(model_transform, scale(1/2, 1/2, 1/2));
+              model_transform = orig_model;
 
-              return model_transform;
-            };
+            }.bind(this);
 
-            drawFlower.call(this);
+            // draw pyramids
+            (() => {
+              triple_pyramid();
+            })();
+
+            // draw floor plane
+            (() => {
+              var orig_model = model_transform;
+
+              model_transform = mult(model_transform, translation(0, -10, 0));
+                model_transform = mult(model_transform, scale(100, .2, 100));
+                  this.shapes.box.draw(graphics_state, model_transform, this.floor_color);
+                model_transform = mult(model_transform, scale(1/100, 1/.2, 1/100));
+              model_transfrom = mult(model_transform, translation(0, 10, 0));
+
+              model_transform = orig_model;
+            })();
 
 
+
+            // // left building
+            // (() => {
+            //   var orig_model = model_transform;
+            //
+            //   model_transform = mult(model_transform, translation(-60, 20, 0));
+            //     model_transform = mult(model_transform, scale(40, 40, 10));
+            //       this.shapes.box.draw(graphics_state, model_transform, this.yellow_clay1);
+            //     model_transform = mult(model_transform, scale(1/40, 1/40, 1/10));
+            //   model_transfrom = mult(model_transform, translation(60, -20, 0));
+            //
+            //   model_transform = orig_model;
+            // })();
+            //
+            //
+            //   // right building
+            //   (() => {
+            //     var orig_model = model_transform;
+            //
+            //     model_transform = mult(model_transform, translation(60, 20, 0));
+            //       model_transform = mult(model_transform, scale(40, 40, 10));
+            //         this.shapes.box.draw(graphics_state, model_transform, this.yellow_clay1);
+            //       model_transform = mult(model_transform, scale(1/40, 1/40, 1/10));
+            //     model_transfrom = mult(model_transform, translation(-60, -20, 0));
+            //
+            //     model_transform = orig_model;
+            //   })();
+
+            // draw sky
+            (() => {
+              var orig_model = model_transform;
+
+              model_transform = mult(model_transform, translation(0, 0, -125));
+                model_transform = mult(model_transform, scale(100, 100, 1));
+                  this.shapes.box.draw(graphics_state, model_transform, this.sky_color);
+
+              model_transform = orig_model;
+            })()
       }
   }, Scene_Component );
 
@@ -113,12 +316,14 @@ Declare_Any_Class( "Bee_Scene",  // An example of drawing a hierarchical object 
 
 Declare_Any_Class( "Debug_Screen",  // Debug_Screen - An example of a Scene_Component that our Canvas_Manager can manage.  Displays a text user interface.
   { 'construct'( context )
-      { this.define_data_members( { string_map:    context.globals.string_map, start_index: 0, tick: 0, visible: false, graphics_state: new Graphics_State(),
+      {
+        this.define_data_members( { string_map:    context.globals.string_map, start_index: 0, tick: 0, visible: false, graphics_state: new Graphics_State(),
                                     text_material: context.shaders_in_use["Phong_Model"].material(
                                                                                 Color(  0, 0, 0, 1 ), 1, 0, 0, 40, context.textures_in_use["text.png"] ) } );
         var shapes = { 'debug_text': new Text_Line( 35 ),
                        'cube':   new Cube() };
         this.submit_shapes( context, shapes );
+        this.animation_time = 1;
       },
     'init_keys'( controls )
       { controls.add( "t",    this, function() { this.visible ^= 1;                                                                                                  } );
@@ -128,11 +333,15 @@ Declare_Any_Class( "Debug_Screen",  // Debug_Screen - An example of a Scene_Comp
         this.controls = controls;
       },
     'update_strings'( debug_screen_object )   // Strings that this Scene_Component contributes to the UI:
-      { debug_screen_object.string_map["tick"]              = "Frame: " + this.tick++;
+      {
+        debug_screen_object.string_map["frameRate"] = "frame rate: " + Math.round(1/(this.animation_time / 1000)) + " fps";
+        debug_screen_object.string_map["tick"]              = "Frame: " + this.tick++;
         debug_screen_object.string_map["text_scroll_index"] = "Text scroll index: " + this.start_index;
       },
     'display'( global_graphics_state )    // Leave these 3D global matrices unused, because this class is instead making a 2D user interface.
-      { if( !this.visible ) return;
+      {
+        this.animation_time = global_graphics_state.animation_delta_time;
+        if( !this.visible ) return;
         var font_scale = scale( .02, .04, 1 ),
             model_transform = mult( translation( -.95, -.9, 0 ), font_scale ),
             strings = Object.keys( this.string_map );

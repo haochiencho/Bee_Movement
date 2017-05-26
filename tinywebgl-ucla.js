@@ -38,8 +38,9 @@ Declare_Any_Class( "Shape",
           gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.index_buffer);
           gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(this.indices), gl.STATIC_DRAW);
         }
+        this.sent_to_GPU = true;
         this.gl = gl;
-      },      
+      },
     'draw'( graphics_state, model_transform, material, gl = this.gl )                          // The same draw() function is used for every shape -
       { if( !this.gl ) throw "This shape's arrays are not copied over to graphics card yet.";  // these calls produce different results by varying which
         material.shader.activate();                                                            // vertex list in the GPU we consult.
@@ -78,12 +79,12 @@ Declare_Any_Class( "Shape",
         Array.prototype.push.apply( recipient.texture_coords, temp_shape.texture_coords );
       },
     'auto_flat_shaded_version'( args )
-      { Declare_Any_Class( this.class_name.concat( "_flat" ), 
+      { Declare_Any_Class( this.class_name.concat( "_flat" ),
         { 'populate': ( function( superclass ) { return function(args)
             { superclass.prototype.populate.apply( this, arguments );  this.duplicate_the_shared_vertices();  this.flat_shade(); }
             } )( window[ this.class_name ] ),
           'duplicate_the_shared_vertices'()
-            { // Prepare an indexed shape for flat shading if it is not ready -- that is, if there are any edges where the same vertices are indexed by both the adjacent 
+            { // Prepare an indexed shape for flat shading if it is not ready -- that is, if there are any edges where the same vertices are indexed by both the adjacent
               // triangles, and those two triangles are not co-planar.  The two would therefore fight over assigning different normal vectors to the shared vertices.
               var temp_positions = [], temp_tex_coords = [], temp_indices = [];
               for( let [i, it] of this.indices.entries() )
@@ -91,7 +92,7 @@ Declare_Any_Class( "Shape",
               this.positions =  temp_positions;       this.indices = temp_indices;    this.texture_coords = temp_tex_coords;
             },
           'flat_shade'()      // Automatically assign the correct normals to each triangular element to achieve flat shading.  Affect all
-            {                 // recently added triangles (those past "offset" in the list).  Assumes that no vertices are shared across seams.        
+            {                 // recently added triangles (those past "offset" in the list).  Assumes that no vertices are shared across seams.
               for( var counter = 0; counter < (this.indexed ? this.indices.length : this.positions.length); counter += 3 )         // Iterate through appropriate triples
               { var indices = this.indexed ? [ this.indices[ counter ], this.indices[ counter + 1 ], this.indices[ counter + 2 ] ] : [ counter, counter + 1, counter + 2 ];
                 var p1 = this.positions[ indices[0] ],     p2 = this.positions[ indices[1] ],      p3 = this.positions[ indices[2] ];
@@ -128,7 +129,7 @@ Declare_Any_Class( "Shortcut_Manager",        // Google shortcut.js for this key
             var special_keys = {'esc':27,        'escape':27,      'tab':9,     'space':32,   'return':13,   'enter':13,    'backspace':8,
                                 'scrolllock':145,'scroll_lock':145,'scroll':145,'capslock':20,'caps_lock':20,'caps':20,     'numlock':144,
                                 'num_lock':144,  'num':144,        'pause':19,  'break':19,   'insert':45,   'home':36,     'delete':46,
-                                'end':35,        'pageup':33,      'page_up':33,'pu':33,      'pagedown':34, 'page_down':34,'pd':34,  
+                                'end':35,        'pageup':33,      'page_up':33,'pu':33,      'pagedown':34, 'page_down':34,'pd':34,
                                 'left':37,       'up':38,          'right':39,  'down':40,
                                 'f1':112,'f2':113,'f3':114,'f4':115,'f5':116,'f6':117,'f7':118,'f8':119,'f9':120,'f10':121,'f11':122,'f12':123 }
             var modifiers = { shift: { wanted: false, pressed: e.shiftKey },
@@ -177,10 +178,10 @@ Declare_Any_Class( "Graphics_State", // The properties of the whole scene
     'set'(                          camera_transform = identity(), projection_transform = identity(), animation_time = 0  )
       { this.define_data_members( { camera_transform,              projection_transform,              animation_time, animation_delta_time: 0, lights: [] } ); }
   } );
-  
+
 Declare_Any_Class( "Light",          // The properties of one light in the scene
   { 'construct'( position, color, size ) { this.define_data_members( { position, color, attenuation: 1/size } ); }  } );
-  
+
 function Color( r, g, b, a ) { return vec4( r, g, b, a ); }     // Colors are just special vec4s expressed as: ( red, green, blue, opacity ) each from 0 to 1.
 
 Declare_Any_Class( "Graphics_Addresses",  // Find out the memory addresses internal to the graphics card of each of
@@ -206,7 +207,7 @@ Declare_Any_Class( "Shader",  // Shader superclass.  Instantiate subclasses that
   { 'construct'( gl )
       { this.define_data_members( { gl, program: gl.createProgram() } );
         var shared = this.shared_glsl_code() || "";
-        
+
         var vertShdr = gl.createShader( gl.VERTEX_SHADER );
         gl.shaderSource( vertShdr, shared + this.vertex_glsl_code() );
         gl.compileShader( vertShdr );
@@ -226,8 +227,8 @@ Declare_Any_Class( "Shader",  // Shader superclass.  Instantiate subclasses that
     'material'(){},  'update_GPU'(){},  'shared_glsl_code'(){},  'vertex_glsl_code'(){},  'fragment_glsl_code'(){}   // You have to override these functions
   } );
 
-Declare_Any_Class( "Canvas_Manager",           // This class manages a whole graphics program for one on-page canvas, inclduing its textures, shapes, shaders, and 
-  { 'construct'( canvas_id, background_color ) // scenes.  In addition to requesting a WebGL context, it informs the canvas of which functions to call during 
+Declare_Any_Class( "Canvas_Manager",           // This class manages a whole graphics program for one on-page canvas, inclduing its textures, shapes, shaders, and
+  { 'construct'( canvas_id, background_color ) // scenes.  In addition to requesting a WebGL context, it informs the canvas of which functions to call during
       { var gl, canvas = document.getElementById( canvas_id );                            // events - such as a key getting pressed or it being time to redraw.
         this.define_data_members( { shaders_in_use: {}, shapes_in_use: {}, textures_in_use: {}, scene_components: [], prev_time: 0,
                                     controls: new Shortcut_Manager(),                        // All per-canvas key controls will be stored here.
@@ -249,12 +250,12 @@ Declare_Any_Class( "Canvas_Manager",           // This class manages a whole gra
         this.prev_time = time;
 
         for ( let s in this.shapes_in_use ) if( !this.shapes_in_use[s].sent_to_GPU ) this.shapes_in_use[s].copy_onto_graphics_card( this.gl );
-        this.gl.clear( this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);        // Clear the canvas's pixels and z-buffer.           
+        this.gl.clear( this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT);        // Clear the canvas's pixels and z-buffer.
         for ( let s of this.scene_components )
         { s.display( this.globals.graphics_state );            // Draw each registered animation.
           s.update_strings( this.globals );                    // Update their debug logs.
         }
-        window.requestAnimFrame( this.render.bind( this ) );   // Now that this frame is drawn, request that render() happen again 
+        window.requestAnimFrame( this.render.bind( this ) );   // Now that this frame is drawn, request that render() happen again
       }                                                        // as soon as all other web page events are processed.
   } );
 
@@ -284,7 +285,7 @@ Declare_Any_Class( "Texture",                                                   
 
 Declare_Any_Class( "Scene_Component",           // Scene_Component Superclass -- Base class for any scene part or code snippet we can add to a canvas
   { 'construct'() {},    'init_keys'() {},    'update_strings'() {},    'display'() {},
-    'submit_shapes'( context, shapes )        // Store pointers to the shapes locally.  Also 
+    'submit_shapes'( context, shapes )        // Store pointers to the shapes locally.  Also
     { this.shapes = [];                       // submit them to the outer context.
       for( let s in shapes )
         { if( context.shapes_in_use[s] ) this.shapes[s] = context.shapes_in_use[s];      // If two scenes give any shape the same name as an existing one, the
